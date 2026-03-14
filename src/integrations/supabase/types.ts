@@ -14,7 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      festivals: {
+        Row: {
+          created_at: string
+          description: string | null
+          gregorian_date: string
+          id: string
+          is_national_holiday: boolean | null
+          name: string
+          region: string | null
+          religion: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          gregorian_date: string
+          id?: string
+          is_national_holiday?: boolean | null
+          name: string
+          region?: string | null
+          religion?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          gregorian_date?: string
+          id?: string
+          is_national_holiday?: boolean | null
+          name?: string
+          region?: string | null
+          religion?: string | null
+        }
+        Relationships: []
+      }
+      user_events: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          event_date: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          event_date: string
+          id?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          event_date?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
