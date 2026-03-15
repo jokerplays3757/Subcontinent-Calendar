@@ -182,25 +182,65 @@ export function CalendarGrid({
                 {evs.map(ev => (
                   <Popover key={ev.id}>
                     <PopoverTrigger asChild>
-                      <div className="truncate rounded-md bg-secondary/30 text-secondary-foreground px-1 py-0.5 text-[10px] font-medium" onClick={(e) => e.stopPropagation()}>
+                      <div 
+                        className="truncate rounded-md bg-secondary/30 text-secondary-foreground px-1 py-0.5 text-[10px] font-medium" 
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {ev.title}
                       </div>
                     </PopoverTrigger>
-                    <PopoverContent className="p-3 w-64">
+                    <PopoverContent className="p-3 w-64 animate-in fade-in slide-in-from-bottom-2">
                       <div className="flex justify-between items-start mb-2">
-                        <div><p className="text-sm font-bold">{ev.title}</p><p className="text-xs text-muted-foreground">{format(d, 'PPP')}</p></div>
+                        <div>
+                          <p className="text-sm font-bold">{ev.title}</p>
+                          <p className="text-xs text-muted-foreground">{format(d, 'PPP')}</p>
+                        </div>
                         <div className="flex gap-1">
-                          <button onClick={(e) => { e.stopPropagation(); onEditEvent?.(ev); }} className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-primary"><Pencil className="h-3 w-3" /></button>
+                          <button 
+                            onClick={(e) => { 
+                              e.stopPropagation(); 
+                              onEditEvent?.(ev); 
+                            }} 
+                            className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-primary"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                          
                           <AlertDialog>
-                            <AlertDialogTrigger asChild><button onClick={(e) => e.stopPropagation()} className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /></button></AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader><AlertDialogTitle>Delete Event?</AlertDialogTitle><AlertDialogDescription>This cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                              <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => onDeleteEvent?.(ev.id)} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction></AlertDialogFooter>
+                            <AlertDialogTrigger asChild>
+                              <button 
+                                onClick={(e) => e.stopPropagation()} 
+                                className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Event?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete your event.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onDeleteEvent) {
+                                      onDeleteEvent(ev.id);
+                                    }
+                                  }} 
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
                       </div>
-                      {ev.description && <p className="text-xs border-t pt-2">{ev.description}</p>}
+                      {ev.description && <p className="text-xs border-t pt-2 mt-2">{ev.description}</p>}
                     </PopoverContent>
                   </Popover>
                 ))}
