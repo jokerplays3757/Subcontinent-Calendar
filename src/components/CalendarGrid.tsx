@@ -47,6 +47,8 @@ export function CalendarGrid({
   onEditEvent,
 }: CalendarGridProps) {
   const { user } = useAuth();
+  
+  // Grid generation stays Gregorian-based for logic stability
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const calStart = startOfWeek(monthStart);
@@ -101,20 +103,20 @@ export function CalendarGrid({
   }, [googleEvents]);
 
   const days: Date[] = [];
-  let day = calStart;
-  while (day <= calEnd) {
-    days.push(day);
-    day = addDays(day, 1);
+  let currentDay = calStart;
+  while (currentDay <= calEnd) {
+    days.push(currentDay);
+    currentDay = addDays(currentDay, 1);
   }
 
   const getOverlayText = (date: Date): string => {
     if (overlayCalendar === 'vikram') {
       const vs = gregorianToVikramSamvat(date, monthScheme);
-      return `${vs.month.slice(0, 3)} ${vs.day || ''}`;
+      return `${vs.month.slice(0, 3)} ${vs.day}`;
     }
     if (overlayCalendar === 'saka') {
       const saka = gregorianToSaka(date);
-      return `${saka.month.slice(0, 3)} ${saka.day || ''}`;
+      return `${saka.month.slice(0, 3)} ${saka.day}`;
     }
     if (overlayCalendar === 'gregorian') {
       return format(date, 'MMM d');
@@ -139,6 +141,12 @@ export function CalendarGrid({
           const inMonth = isSameMonth(d, currentDate);
           const today = isToday(d);
 
+          // Determine display number based on baseCalendar
+          let displayNumber: string;
+          if (baseCalendar === 'vikram') displayNumber = gregorianToVikramSamvat(d, monthScheme).day.toString();
+          else if (baseCalendar === 'saka') displayNumber = gregorianToSaka(d).day.toString();
+          else displayNumber = format(d, 'd');
+
           return (
             <div
               key={i}
@@ -150,7 +158,7 @@ export function CalendarGrid({
             >
               <div className="flex justify-between items-start w-full">
                 <span className={cn('text-xs font-medium', today && 'bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center')}>
-                  {format(d, 'd')}
+                  {displayNumber}
                 </span>
                 {overlayCalendar !== 'none' && (
                   <span className="text-[10px] text-muted-foreground">{getOverlayText(d)}</span>
@@ -165,7 +173,7 @@ export function CalendarGrid({
                         {f.name}
                       </div>
                     </PopoverTrigger>
-                    <PopoverContent className="p-3 w-64 animate-in fade-in slide-in-from-bottom-2">
+                    <PopoverContent className="p-3 w-64">
                       <p className="text-sm font-bold">{f.name}</p>
                       <p className="text-xs text-muted-foreground">{format(d, 'PPP')}</p>
                     </PopoverContent>
@@ -178,28 +186,16 @@ export function CalendarGrid({
                         {ev.title}
                       </div>
                     </PopoverTrigger>
-                    <PopoverContent className="p-3 w-64 animate-in fade-in slide-in-from-bottom-2">
+                    <PopoverContent className="p-3 w-64">
                       <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className="text-sm font-bold">{ev.title}</p>
-                          <p className="text-xs text-muted-foreground">{format(d, 'PPP')}</p>
-                        </div>
+                        <div><p className="text-sm font-bold">{ev.title}</p><p className="text-xs text-muted-foreground">{format(d, 'PPP')}</p></div>
                         <div className="flex gap-1">
-                          <button onClick={(e) => { e.stopPropagation(); onEditEvent?.(ev); }} className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-primary">
-                            <Pencil className="h-3 w-3" />
-                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); onEditEvent?.(ev); }} className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-primary"><Pencil className="h-3 w-3" /></button>
                           <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <button onClick={(e) => e.stopPropagation()} className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-destructive">
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </AlertDialogTrigger>
+                            <AlertDialogTrigger asChild><button onClick={(e) => e.stopPropagation()} className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /></button></AlertDialogTrigger>
                             <AlertDialogContent>
                               <AlertDialogHeader><AlertDialogTitle>Delete Event?</AlertDialogTitle><AlertDialogDescription>This cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDeleteEvent?.(ev.id)} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
-                              </AlertDialogFooter>
+                              <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => onDeleteEvent?.(ev.id)} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction></AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
                         </div>
