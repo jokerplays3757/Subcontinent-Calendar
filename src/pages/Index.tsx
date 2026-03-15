@@ -231,7 +231,7 @@ const Index = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setOverlay('none')}>
-                  None (Gregorian only)
+                  Gregorian
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setOverlay('vikram')}>
                   Vikram Samvat
@@ -239,10 +239,10 @@ const Index = () => {
                 <DropdownMenuItem onClick={() => setOverlay('saka')}>
                   Saka Era
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setMonthScheme('amanta')}>
+                <DropdownMenuItem onClick={() => {setOverlay('vikram');setMonthScheme('amanta');}}>
                   Amanta (South/West India)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setMonthScheme('purnimanta')}>
+                <DropdownMenuItem onClick={() => {setOverlay('vikram');setMonthScheme('purnimanta');}}>
                   Purnimanta (North India)
                 </DropdownMenuItem>
               </DropdownMenuContent>
