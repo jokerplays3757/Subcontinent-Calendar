@@ -44,7 +44,10 @@ export function FestivalSidebar({ currentDate }: FestivalSidebarProps) {
       ) : festivals && festivals.length > 0 ? (
         <div className="space-y-3">
           {festivals.map((f) => (
-            <div key={f.id} className="rounded-lg bg-muted/50 p-3 hover:bg-muted transition-colors">
+            <div
+              key={`${f.id}-${f.gregorian_date}`}
+              className="rounded-lg bg-muted/50 p-3 hover:bg-muted transition-colors"
+            >
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-semibold text-sm">{f.name}</p>

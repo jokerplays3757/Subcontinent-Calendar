@@ -138,7 +138,7 @@ const Index = () => {
       setGoogleEvents(mapped);
       toast.success(`Synced ${mapped.length} Google Calendar event(s) for this month.`);
     } catch (error) {
-      console.error('Error syncing Google Calendar', error);
+      console.error(error);
       toast.error('Failed to sync Google Calendar events.');
     }
   };
