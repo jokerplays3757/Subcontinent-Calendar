@@ -4,7 +4,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar as CalIcon,
-  LogIn,
   LogOut,
   Plus,
   Layers,
@@ -35,7 +34,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface GoogleCalendarEvent {
   id: string;
   title: string;
-  startDate: string; // yyyy-MM-dd
+  startDate: string;
 }
 
 const Index = () => {
@@ -62,7 +61,7 @@ const Index = () => {
         clientId: GOOGLE_CLIENT_ID,
         discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
         scope: GOOGLE_SCOPES,
-      }).catch(() => {});
+      }).catch(() => { });
     }
     gapi.load('client:auth2', initClient);
   }, [GOOGLE_API_KEY, GOOGLE_CLIENT_ID]);
@@ -93,53 +92,39 @@ const Index = () => {
   };
 
   const handleSyncGoogleCalendar = async () => {
-    if (!GOOGLE_CLIENT_ID || !GOOGLE_API_KEY) {
-      toast.error('Google Calendar is not configured.');
-      return;
-    }
     try {
       const authInstance = gapi.auth2.getAuthInstance();
-      if (!authInstance) {
-        await gapi.client.init({
-          apiKey: GOOGLE_API_KEY,
-          clientId: GOOGLE_CLIENT_ID,
-          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
-          scope: GOOGLE_SCOPES,
-        });
-      }
-      const updatedAuth = gapi.auth2.getAuthInstance();
-      await updatedAuth.signIn();
-      
-      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-      const timeMin = monthStart.toISOString();
-      const timeMax = new Date(monthEnd.getTime() + 86400000).toISOString();
-  
-      // FIX: Cast gapi.client to 'any' so TypeScript allows the '.calendar' property
+      await authInstance.signIn();
+
       const response = await (gapi.client as any).calendar.events.list({
         calendarId: 'primary',
-        timeMin,
-        timeMax,
+        timeMin: new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString(),
         singleEvents: true,
       });
-  
-      const mapped: GoogleCalendarEvent[] = (response.result.items ?? []).map((event: any) => {
-        const start = event.start?.date || event.start?.dateTime;
-        if (!start) return null;
-        const d = new Date(start);
-        return { 
-          id: event.id, 
-          title: event.summary || '(No title)', 
-          startDate: d.toISOString().slice(0, 10) 
-        };
-      }).filter((e: any): e is GoogleCalendarEvent => e !== null);
-  
+
+      const mapped = (response.result.items ?? []).map((event: any) => ({
+        id: event.id,
+        title: event.summary || '(No title)',
+        startDate: (event.start?.date || event.start?.dateTime).slice(0, 10),
+      }));
+
       setGoogleEvents(mapped);
-      toast.success(`Synced ${mapped.length} Google events.`);
+      toast.success(`Synced ${mapped.length} events.`);
     } catch (error) {
-      console.error("Sync Error:", error);
       toast.error('Failed to sync Google Calendar.');
     }
+  };
+
+  const getDynamicTitle = () => {
+    if (baseCalendar === 'vikram') {
+      const vs = gregorianToVikramSamvat(currentDate, monthScheme);
+      return `${vs.month} ${vs.year}`;
+    }
+    if (baseCalendar === 'saka') {
+      const saka = gregorianToSaka(currentDate);
+      return `${saka.month} ${saka.year}`;
+    }
+    return format(currentDate, 'MMMM yyyy');
   };
 
   return (
@@ -154,17 +139,17 @@ const Index = () => {
             <DateConverterModal />
             <Button variant="outline" size="sm" onClick={handleSyncGoogleCalendar} className="gap-1">
               <RefreshCw className="h-4 w-4" />
-              <span className="hidden sm:inline">Sync Google Calendar</span>
+              <span className="hidden sm:inline">Sync Google</span>
             </Button>
             {user ? (
               <div className="flex items-center gap-2">
                 <Button size="sm" onClick={() => handleDateClick(new Date())} className="gap-1">
-                  <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Add Event</span>
+                  <Plus className="h-4 w-4" /> Add Event
                 </Button>
                 <Button variant="ghost" size="sm" onClick={signOut}><LogOut className="h-4 w-4" /></Button>
               </div>
             ) : (
-              <Button variant="outline" size="sm" onClick={() => setAuthOpen(true)}><LogIn className="h-4 w-4" /></Button>
+              <Button variant="outline" size="sm" onClick={() => setAuthOpen(true)}>Sign In</Button>
             )}
           </div>
         </div>
@@ -174,32 +159,28 @@ const Index = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => setCurrentDate(subMonths(currentDate, 1))}><ChevronLeft /></Button>
-            <h2 className="font-display text-2xl font-bold">{format(currentDate, 'MMMM yyyy')}</h2>
+            <h2 className="font-display text-2xl font-bold">{getDynamicTitle()}</h2>
             <Button variant="ghost" size="icon" onClick={() => setCurrentDate(addMonths(currentDate, 1))}><ChevronRight /></Button>
           </div>
 
           <div className="flex items-center gap-2">
-             <Button variant="ghost" size="sm" onClick={() => setCurrentDate(new Date())} className="text-xs">Today</Button>
+            <Button variant="ghost" size="sm" onClick={() => setCurrentDate(new Date())}>Today</Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm"><Layers className="mr-2 h-4 w-4" /> View Options</Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>Base Calendar</DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem checked={baseCalendar === 'gregorian'} onClick={() => setBaseCalendar('gregorian')}>Gregorian</DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem checked={baseCalendar === 'vikram'} onClick={() => setBaseCalendar('vikram')}>Vikram Samvat</DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem checked={baseCalendar === 'saka'} onClick={() => setBaseCalendar('saka')}>Saka Era</DropdownMenuCheckboxItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Overlay</DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem checked={overlayCalendar === 'none'} onClick={() => setOverlayCalendar('none')}>None</DropdownMenuCheckboxItem>
-                {baseCalendar !== 'vikram' && <DropdownMenuCheckboxItem checked={overlayCalendar === 'vikram'} onClick={() => setOverlayCalendar('vikram')}>Vikram Samvat</DropdownMenuCheckboxItem>}
-                {baseCalendar !== 'saka' && <DropdownMenuCheckboxItem checked={overlayCalendar === 'saka'} onClick={() => setOverlayCalendar('saka')}>Saka Era</DropdownMenuCheckboxItem>}
-                {baseCalendar !== 'gregorian' && <DropdownMenuCheckboxItem checked={overlayCalendar === 'gregorian'} onClick={() => setOverlayCalendar('gregorian')}>Gregorian</DropdownMenuCheckboxItem>}
+                <DropdownMenuCheckboxItem checked={overlayCalendar === 'vikram'} onClick={() => setOverlayCalendar('vikram')}>Vikram Samvat</DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem checked={overlayCalendar === 'saka'} onClick={() => setOverlayCalendar('saka')}>Saka Era</DropdownMenuCheckboxItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>VS Scheme</DropdownMenuLabel>
-                <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem checked={monthScheme === 'amanta'} onClick={() => setMonthScheme('amanta')}>Amanta (South/West)</DropdownMenuCheckboxItem>
                 <DropdownMenuCheckboxItem checked={monthScheme === 'purnimanta'} onClick={() => setMonthScheme('purnimanta')}>Purnimanta (North)</DropdownMenuCheckboxItem>
               </DropdownMenuContent>
@@ -226,10 +207,10 @@ const Index = () => {
       </main>
 
       <AuthModal open={authOpen} onOpenChange={setAuthOpen} />
-      <AddEventModal 
-        open={addEventOpen} 
-        onOpenChange={setAddEventOpen} 
-        selectedDate={selectedDate} 
+      <AddEventModal
+        open={addEventOpen}
+        onOpenChange={setAddEventOpen}
+        selectedDate={selectedDate}
         editingEvent={editingEvent}
       />
     </div>
