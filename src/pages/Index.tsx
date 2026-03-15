@@ -1,9 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  format,
-  addMonths,
-  subMonths,
-} from 'date-fns';
+import { format, addMonths, subMonths } from 'date-fns';
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,7 +18,12 @@ import { ZodiacInsight } from '@/components/ZodiacInsight';
 import { DateConverterModal } from '@/components/DateConverterModal';
 import { AuthModal } from '@/components/AuthModal';
 import { AddEventModal } from '@/components/AddEventModal';
-import { gregorianToVikramSamvat, gregorianToSaka, type MonthScheme } from '@/lib/calendar-utils';
+import {
+  gregorianToVikramSamvat,
+  gregorianToSaka,
+  type MonthScheme,
+  type CalendarId,
+} from '@/lib/calendar-utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,7 +41,8 @@ interface GoogleCalendarEvent {
 const Index = () => {
   const { user, signOut } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [overlay, setOverlay] = useState<'none' | 'vikram' | 'saka'>('none');
+  const [baseCalendar, setBaseCalendar] = useState<CalendarId>('gregorian');
+  const [overlayCalendar, setOverlayCalendar] = useState<'none' | CalendarId>('none');
   const [monthScheme, setMonthScheme] = useState<MonthScheme>('purnimanta');
   const [authOpen, setAuthOpen] = useState(false);
   const [addEventOpen, setAddEventOpen] = useState(false);
@@ -73,6 +75,25 @@ const Index = () => {
 
   const vs = gregorianToVikramSamvat(currentDate, monthScheme);
   const saka = gregorianToSaka(currentDate);
+
+  const getHeaderLabel = () => {
+    if (baseCalendar === 'vikram') {
+      return `${vs.month} ${vs.year} VS`;
+    }
+    if (baseCalendar === 'saka') {
+      return `${saka.month} ${saka.year} SE`;
+    }
+    return format(currentDate, 'MMMM yyyy');
+  };
+
+  const getMonthSubLabel = () => {
+    if (baseCalendar === 'gregorian') {
+      return monthScheme === 'purnimanta'
+        ? `${vs.month}, ${vs.year} VS`
+        : `${saka.month}, ${saka.year} SE`;
+    }
+    return '';
+  };
 
   const handleDateClick = (date: Date) => {
     if (user) {
@@ -190,13 +211,11 @@ const Index = () => {
             </Button>
             <div className="text-center min-w-[180px]">
               <h2 className="font-display text-2xl font-bold">
-                {format(currentDate, 'MMMM yyyy')}
+                {getHeaderLabel()}
               </h2>
-              {overlay !== 'none' && (
+              {getMonthSubLabel() && (
                 <p className="text-sm text-primary animate-fade-in">
-                  {overlay === 'vikram'
-                    ? `${vs.month}, ${vs.year} VS`
-                    : `${saka.month}, ${saka.year} SE`}
+                  {getMonthSubLabel()}
                 </p>
               )}
             </div>
@@ -222,27 +241,77 @@ const Index = () => {
             >
               Today
             </Button>
+
+            {/* Base calendar selection */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-1">
                   <Layers className="h-4 w-4" />
-                  {overlay === 'none' ? 'Regional Overlay' : overlay === 'vikram' ? 'Vikram Samvat' : 'Saka Era'}
+                  Base:{' '}
+                  {baseCalendar === 'gregorian'
+                    ? 'Gregorian'
+                    : baseCalendar === 'vikram'
+                    ? 'Vikram Samvat'
+                    : 'Saka Era'}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setOverlay('none')}>
+                <DropdownMenuItem onClick={() => setBaseCalendar('gregorian')}>
                   Gregorian
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setOverlay('vikram')}>
+                <DropdownMenuItem onClick={() => setBaseCalendar('vikram')}>
                   Vikram Samvat
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setOverlay('saka')}>
+                <DropdownMenuItem onClick={() => setBaseCalendar('saka')}>
                   Saka Era
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {setOverlay('vikram');setMonthScheme('amanta');}}>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Overlay selection */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1">
+                  Overlay:{' '}
+                  {overlayCalendar === 'none'
+                    ? 'None'
+                    : overlayCalendar === 'gregorian'
+                    ? 'Gregorian'
+                    : overlayCalendar === 'vikram'
+                    ? 'Vikram Samvat'
+                    : 'Saka Era'}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setOverlayCalendar('none')}>
+                  None
+                </DropdownMenuItem>
+                {(['gregorian', 'vikram', 'saka'] as CalendarId[])
+                  .filter((cal) => cal !== baseCalendar)
+                  .map((cal) => (
+                    <DropdownMenuItem key={cal} onClick={() => setOverlayCalendar(cal)}>
+                      {cal === 'gregorian'
+                        ? 'Gregorian'
+                        : cal === 'vikram'
+                        ? 'Vikram Samvat'
+                        : 'Saka Era'}
+                    </DropdownMenuItem>
+                  ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Month scheme toggle */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1">
+                  Scheme: {monthScheme === 'amanta' ? 'Amanta' : 'Purnimanta'}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setMonthScheme('amanta')}>
                   Amanta (South/West India)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {setOverlay('vikram');setMonthScheme('purnimanta');}}>
+                <DropdownMenuItem onClick={() => setMonthScheme('purnimanta')}>
                   Purnimanta (North India)
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -255,7 +324,8 @@ const Index = () => {
           <div>
             <CalendarGrid
               currentDate={currentDate}
-              showOverlay={overlay}
+              baseCalendar={baseCalendar}
+              overlayCalendar={overlayCalendar}
               onDateClick={handleDateClick}
               googleEvents={googleEvents}
               monthScheme={monthScheme}

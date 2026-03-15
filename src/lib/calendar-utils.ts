@@ -31,6 +31,7 @@ const VEDIC_ZODIAC = [
 ];
 
 export type MonthScheme = 'amanta' | 'purnimanta';
+export type CalendarId = 'gregorian' | 'vikram' | 'saka';
 
 // Year-specific refinement for 2026 month boundaries
 // These are approximate civil calendar starts for better overlays in 2026.
@@ -207,6 +208,70 @@ export function gregorianToSaka(date: Date): { year: number; month: string; mont
   }
 
   return { year: sakaYear, month: SAKA_MONTHS[monthIndex], monthIndex };
+}
+
+/**
+ * Generate all Gregorian dates belonging to the Vikram Samvat month that contains `anchorDate`.
+ * Uses the existing gregorianToVikramSamvat mapping and walks backward/forward until the month changes.
+ */
+export function getVikramMonthDays(anchorDate: Date, scheme: MonthScheme): Date[] {
+  const anchorInfo = gregorianToVikramSamvat(anchorDate, scheme);
+  const days: Date[] = [];
+
+  // Find month start by walking backward
+  let start = new Date(anchorDate);
+  // safety cap: don't walk back more than 40 days
+  for (let i = 0; i < 40; i++) {
+    const prev = new Date(start);
+    prev.setDate(prev.getDate() - 1);
+    const prevInfo = gregorianToVikramSamvat(prev, scheme);
+    if (prevInfo.year === anchorInfo.year && prevInfo.month === anchorInfo.month) {
+      start = prev;
+    } else {
+      break;
+    }
+  }
+
+  // Walk forward until month changes
+  let current = new Date(start);
+  for (let i = 0; i < 40; i++) {
+    const info = gregorianToVikramSamvat(current, scheme);
+    if (info.year !== anchorInfo.year || info.month !== anchorInfo.month) break;
+    days.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  return days;
+}
+
+/**
+ * Generate all Gregorian dates belonging to the Saka month that contains `anchorDate`.
+ */
+export function getSakaMonthDays(anchorDate: Date): Date[] {
+  const anchorInfo = gregorianToSaka(anchorDate);
+  const days: Date[] = [];
+
+  let start = new Date(anchorDate);
+  for (let i = 0; i < 40; i++) {
+    const prev = new Date(start);
+    prev.setDate(prev.getDate() - 1);
+    const prevInfo = gregorianToSaka(prev);
+    if (prevInfo.year === anchorInfo.year && prevInfo.month === anchorInfo.month) {
+      start = prev;
+    } else {
+      break;
+    }
+  }
+
+  let current = new Date(start);
+  for (let i = 0; i < 40; i++) {
+    const info = gregorianToSaka(current);
+    if (info.year !== anchorInfo.year || info.month !== anchorInfo.month) break;
+    days.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  return days;
 }
 
 /**
