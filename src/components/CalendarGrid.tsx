@@ -19,6 +19,7 @@ import {
   type MonthScheme,
   type CalendarId,
 } from '@/lib/calendar-utils';
+import { Pencil, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -37,7 +38,9 @@ interface CalendarGridProps {
     title: string;
     startDate: string; // yyyy-MM-dd
   }[];
-}
+  }[];
+  onDeleteEvent?: (eventId: string) => void;
+  onEditEvent?: (event: { id: string; title: string; description: string | null; event_date: string }) => void;
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -48,6 +51,8 @@ export function CalendarGrid({
   onDateClick,
   monthScheme = 'purnimanta',
   googleEvents = [],
+  onDeleteEvent,
+  onEditEvent,
 }: CalendarGridProps) {
   const { user } = useAuth();
   const monthStart = startOfMonth(currentDate);
@@ -269,9 +274,41 @@ export function CalendarGrid({
                     </PopoverTrigger>
                     <PopoverContent side="top" align="start">
                       <div className="space-y-1">
-                        <div className="text-sm font-semibold">{ev.title}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(new Date(ev.event_date + 'T00:00:00'), 'PPP')}
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="text-sm font-semibold">{ev.title}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {format(new Date(ev.event_date + 'T00:00:00'), 'PPP')}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {onEditEvent && (
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:text-primary transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEditEvent(ev);
+                                }}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                            )}
+                            {onDeleteEvent && (
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:text-destructive transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm('Delete this event?')) {
+                                    onDeleteEvent(ev.id);
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                         {ev.description && (
                           <p className="text-xs text-muted-foreground mt-1">

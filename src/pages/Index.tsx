@@ -47,6 +47,12 @@ const Index = () => {
   const [authOpen, setAuthOpen] = useState(false);
   const [addEventOpen, setAddEventOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [editingEvent, setEditingEvent] = useState<{
+    id: string;
+    title: string;
+    description: string | null;
+    event_date: string;
+  } | null>(null);
   const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
 
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -98,8 +104,25 @@ const Index = () => {
   const handleDateClick = (date: Date) => {
     if (user) {
       setSelectedDate(date);
+      setEditingEvent(null);
       setAddEventOpen(true);
     }
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    try {
+      const { error } = await supabase.from('user_events').delete().eq('id', eventId);
+      if (error) throw error;
+      toast.success('Event deleted');
+      // Let react-query hooks refetch based on invalidation in AddEventModal or rely on refetchOnWindowFocus
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete event');
+    }
+  };
+
+  const handleEditEvent = (event: { id: string; title: string; description: string | null; event_date: string }) => {
+    setEditingEvent(event);
+    setAddEventOpen(true);
   };
 
   const handleSyncGoogleCalendar = async () => {
@@ -329,6 +352,8 @@ const Index = () => {
               onDateClick={handleDateClick}
               googleEvents={googleEvents}
               monthScheme={monthScheme}
+              onDeleteEvent={handleDeleteEvent}
+              onEditEvent={handleEditEvent}
             />
             {!user && (
               <p className="text-xs text-muted-foreground mt-2 text-center">
@@ -346,7 +371,17 @@ const Index = () => {
 
       {/* Modals */}
       <AuthModal open={authOpen} onOpenChange={setAuthOpen} />
-      <AddEventModal open={addEventOpen} onOpenChange={setAddEventOpen} selectedDate={selectedDate} />
+      <AddEventModal
+        open={addEventOpen}
+        onOpenChange={(open) => {
+          setAddEventOpen(open);
+          if (!open) {
+            setEditingEvent(null);
+          }
+        }}
+        selectedDate={selectedDate}
+        editingEvent={editingEvent}
+      />
     </div>
   );
 };
