@@ -30,15 +30,91 @@ const VEDIC_ZODIAC = [
   { name: 'Dhanu', english: 'Sagittarius', symbol: '♐', element: 'Fire', ruling: 'Jupiter', dates: 'Dec 16 – Jan 13' },
 ];
 
+export type MonthScheme = 'amanta' | 'purnimanta';
+
+// Year-specific refinement for 2026 month boundaries
+// These are approximate civil calendar starts for better overlays in 2026.
+const VS_2026_MONTH_STARTS: { monthIndex: number; start: Date }[] = [
+  // Vikram Samvat 2083 starts with Chaitra on 19 March 2026
+  { monthIndex: 0, start: new Date(2026, 2, 19) }, // Chaitra - Mar 19, 2026
+  { monthIndex: 1, start: new Date(2026, 3, 17) }, // Vaishakha - mid April
+  { monthIndex: 2, start: new Date(2026, 4, 17) }, // Jyeshtha - mid May
+  { monthIndex: 3, start: new Date(2026, 5, 16) }, // Ashadha - mid June
+  { monthIndex: 4, start: new Date(2026, 6, 16) }, // Shravana - mid July
+  { monthIndex: 5, start: new Date(2026, 7, 15) }, // Bhadrapada - mid August
+  { monthIndex: 6, start: new Date(2026, 8, 14) }, // Ashvina - mid September
+  { monthIndex: 7, start: new Date(2026, 9, 14) }, // Kartika - mid October
+  { monthIndex: 8, start: new Date(2026, 10, 13) }, // Margashirsha - mid November
+  { monthIndex: 9, start: new Date(2026, 11, 13) }, // Pausha - mid December
+  // Magha / Phalguna of this VS year spill into 2027, so we don't need explicit 2026 starts
+];
+
+const SAKA_2026_MONTH_STARTS: { monthIndex: number; start: Date }[] = [
+  // Saka year 1948 – Chaitra starting on 19 March 2026 (per requirement)
+  { monthIndex: 0, start: new Date(2026, 2, 19) }, // Chaitra
+  { monthIndex: 1, start: new Date(2026, 3, 19) }, // Vaishakha
+  { monthIndex: 2, start: new Date(2026, 4, 19) }, // Jyeshtha
+  { monthIndex: 3, start: new Date(2026, 5, 18) }, // Ashadha
+  { monthIndex: 4, start: new Date(2026, 6, 18) }, // Shravana
+  { monthIndex: 5, start: new Date(2026, 7, 17) }, // Bhadrapada
+  { monthIndex: 6, start: new Date(2026, 8, 17) }, // Ashvina
+  { monthIndex: 7, start: new Date(2026, 9, 18) }, // Kartika
+  { monthIndex: 8, start: new Date(2026, 10, 17) }, // Agrahayana
+  { monthIndex: 9, start: new Date(2026, 11, 17) }, // Pausha
+  // Magha / Phalguna will start in early 2027
+];
+
 /**
  * Convert Gregorian date to approximate Vikram Samvat year and month.
  * VS is ~56.7 years ahead. New year starts in Chaitra (~March/April).
  */
-export function gregorianToVikramSamvat(date: Date): { year: number; month: string; monthIndex: number } {
+export function gregorianToVikramSamvat(
+  date: Date,
+  scheme: MonthScheme = 'purnimanta'
+): { year: number; month: string; monthIndex: number } {
   const gYear = date.getFullYear();
   const gMonth = date.getMonth(); // 0-11
   const gDay = date.getDate();
 
+  // Special handling for 2026 so that:
+  // - Chaitra starts on 19 March 2026
+  // - VS year transitions from 2082 to 2083 on that date
+  if (gYear === 2026) {
+    const chaitraStart = new Date(2026, 2, 19); // 2026-03-19
+
+    let vsYear: number;
+    if (date < chaitraStart) {
+      // Still in the tail of VS 2082
+      vsYear = 2026 + 56; // 2082
+      // For Jan–18 Mar 2026, keep using the simpler approximate mapping from before
+      // (Pausha / Magha / Phalguna of VS 2082)
+      let monthIndex: number;
+      if (gMonth === 0) monthIndex = gDay < 14 ? 9 : 10; // Pausha or Magha
+      else if (gMonth === 1) monthIndex = gDay < 12 ? 10 : 11; // Magha or Phalguna
+      else monthIndex = 11; // Phalguna
+
+      const displayIndex = scheme === 'amanta' ? (monthIndex + 11) % 12 : monthIndex;
+      return { year: vsYear, month: VS_MONTHS[displayIndex], monthIndex: displayIndex };
+    }
+
+    // From 19 March 2026 onwards we are in VS 2083
+    vsYear = 2026 + 57; // 2083
+
+    // Use refined month boundary table for 2026
+    let monthIndex = VS_2026_MONTH_STARTS[0].monthIndex;
+    for (const entry of VS_2026_MONTH_STARTS) {
+      if (date >= entry.start) {
+        monthIndex = entry.monthIndex;
+      } else {
+        break;
+      }
+    }
+
+    const displayIndex = scheme === 'amanta' ? (monthIndex + 11) % 12 : monthIndex;
+    return { year: vsYear, month: VS_MONTHS[displayIndex], monthIndex: displayIndex };
+  }
+
+  // Generic approximation for years other than 2026
   // VS new year starts around mid-March (Chaitra)
   // Before mid-March, we're in the previous VS year's last months
   let vsYear: number;
@@ -65,22 +141,52 @@ export function gregorianToVikramSamvat(date: Date): { year: number; month: stri
     else monthIndex = gDay < 16 ? 8 : 9; // month 11
   }
 
-  return { year: vsYear, month: VS_MONTHS[monthIndex], monthIndex };
+  const displayIndex = scheme === 'amanta' ? (monthIndex + 11) % 12 : monthIndex;
+  return { year: vsYear, month: VS_MONTHS[displayIndex], monthIndex: displayIndex };
 }
 
 /**
  * Convert Gregorian date to approximate Saka era year and month.
- * Saka era = Gregorian - 78 (after Chaitra 1, ~March 22).
+ * Saka era = Gregorian - 78 (after Chaitra 1).
  */
 export function gregorianToSaka(date: Date): { year: number; month: string; monthIndex: number } {
   const gYear = date.getFullYear();
   const gMonth = date.getMonth();
   const gDay = date.getDate();
 
+  // Special handling for 2026 so that Chaitra starts on 19 March 2026
+  if (gYear === 2026) {
+    const chaitraStart = new Date(2026, 2, 19); // 2026-03-19
+
+    let sakaYear: number;
+    if (date < chaitraStart) {
+      // Before 19 March 2026 we are still in the previous Saka year
+      sakaYear = 2026 - 79;
+      let monthIndex: number;
+      if (gMonth === 0) monthIndex = gDay < 14 ? 9 : 10;
+      else if (gMonth === 1) monthIndex = gDay < 12 ? 10 : 11;
+      else monthIndex = 11;
+      return { year: sakaYear, month: SAKA_MONTHS[monthIndex], monthIndex };
+    }
+
+    // From 19 March 2026 onwards we are in Saka year 1948
+    sakaYear = 2026 - 78;
+    let monthIndex = SAKA_2026_MONTH_STARTS[0].monthIndex;
+    for (const entry of SAKA_2026_MONTH_STARTS) {
+      if (date >= entry.start) {
+        monthIndex = entry.monthIndex;
+      } else {
+        break;
+      }
+    }
+
+    return { year: sakaYear, month: SAKA_MONTHS[monthIndex], monthIndex };
+  }
+
   let sakaYear: number;
   let monthIndex: number;
 
-  // Saka new year (Chaitra 1) falls around March 22
+  // Generic approximation for Saka new year (Chaitra 1) around March 22
   if (gMonth < 2 || (gMonth === 2 && gDay < 22)) {
     sakaYear = gYear - 79;
     if (gMonth === 0) monthIndex = gDay < 14 ? 9 : 10;

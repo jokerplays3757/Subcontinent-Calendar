@@ -22,7 +22,7 @@ import { ZodiacInsight } from '@/components/ZodiacInsight';
 import { DateConverterModal } from '@/components/DateConverterModal';
 import { AuthModal } from '@/components/AuthModal';
 import { AddEventModal } from '@/components/AddEventModal';
-import { gregorianToVikramSamvat, gregorianToSaka } from '@/lib/calendar-utils';
+import { gregorianToVikramSamvat, gregorianToSaka, type MonthScheme } from '@/lib/calendar-utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +41,7 @@ const Index = () => {
   const { user, signOut } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [overlay, setOverlay] = useState<'none' | 'vikram' | 'saka'>('none');
+  const [monthScheme, setMonthScheme] = useState<MonthScheme>('purnimanta');
   const [authOpen, setAuthOpen] = useState(false);
   const [addEventOpen, setAddEventOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
@@ -70,7 +71,7 @@ const Index = () => {
     gapi.load('client:auth2', initClient);
   }, [GOOGLE_API_KEY, GOOGLE_CLIENT_ID]);
 
-  const vs = gregorianToVikramSamvat(currentDate);
+  const vs = gregorianToVikramSamvat(currentDate, monthScheme);
   const saka = gregorianToSaka(currentDate);
 
   const handleDateClick = (date: Date) => {
@@ -238,6 +239,12 @@ const Index = () => {
                 <DropdownMenuItem onClick={() => setOverlay('saka')}>
                   Saka Era
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMonthScheme('amanta')}>
+                  Amanta (South/West India)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMonthScheme('purnimanta')}>
+                  Purnimanta (North India)
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -251,6 +258,7 @@ const Index = () => {
               showOverlay={overlay}
               onDateClick={handleDateClick}
               googleEvents={googleEvents}
+              monthScheme={monthScheme}
             />
             {!user && (
               <p className="text-xs text-muted-foreground mt-2 text-center">

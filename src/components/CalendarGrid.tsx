@@ -10,7 +10,7 @@ import {
   isSameDay,
   isToday,
 } from 'date-fns';
-import { gregorianToVikramSamvat, gregorianToSaka } from '@/lib/calendar-utils';
+import { gregorianToVikramSamvat, gregorianToSaka, type MonthScheme } from '@/lib/calendar-utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,6 +22,7 @@ interface CalendarGridProps {
   currentDate: Date;
   showOverlay: 'none' | 'vikram' | 'saka';
   onDateClick: (date: Date) => void;
+  monthScheme?: MonthScheme;
   googleEvents?: {
     id: string;
     title: string;
@@ -31,7 +32,13 @@ interface CalendarGridProps {
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function CalendarGrid({ currentDate, showOverlay, onDateClick, googleEvents = [] }: CalendarGridProps) {
+export function CalendarGrid({
+  currentDate,
+  showOverlay,
+  onDateClick,
+  monthScheme = 'purnimanta',
+  googleEvents = [],
+}: CalendarGridProps) {
   const { user } = useAuth();
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -100,7 +107,7 @@ export function CalendarGrid({ currentDate, showOverlay, onDateClick, googleEven
 
   const getOverlayText = (date: Date): string => {
     if (showOverlay === 'vikram') {
-      const vs = gregorianToVikramSamvat(date);
+      const vs = gregorianToVikramSamvat(date, monthScheme);
       return vs.month.slice(0, 3);
     }
     if (showOverlay === 'saka') {
