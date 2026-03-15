@@ -11,7 +11,7 @@ import { DateConverterModal } from '@/components/DateConverterModal';
 import { AuthModal } from '@/components/AuthModal';
 import { AddEventModal } from '@/components/AddEventModal';
 import { gregorianToVikramSamvat, gregorianToSaka, type MonthScheme, type CalendarId } from '@/lib/calendar-utils';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -87,21 +87,83 @@ const Index = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm"><Layers className="mr-2 h-4 w-4" /> View Options</Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>Base Calendar</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => setBaseCalendar('gregorian')}>Gregorian</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setBaseCalendar('vikram')}>Vikram Samvat</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setBaseCalendar('saka')}>Saka Era</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>Overlay</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => setOverlayCalendar('none')}>None</DropdownMenuItem>
-                {baseCalendar !== 'vikram' && <DropdownMenuItem onClick={() => setOverlayCalendar('vikram')}>Vikram Samvat</DropdownMenuItem>}
-                {baseCalendar !== 'saka' && <DropdownMenuItem onClick={() => setOverlayCalendar('saka')}>Saka Era</DropdownMenuItem>}
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel>VS Scheme</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => setMonthScheme('amanta')}>Amanta (South/West)</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setMonthScheme('purnimanta')}>Purnimanta (North)</DropdownMenuItem>
-              </DropdownMenuContent>
+                <DropdownMenuContent align="end" className="w-56">
+                  {/* Base Calendar Selection */}
+                  <DropdownMenuLabel>Base Calendar</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={baseCalendar === 'gregorian'}
+                    onClick={() => setBaseCalendar('gregorian')}
+                  >
+                    Gregorian
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={baseCalendar === 'vikram'}
+                    onClick={() => setBaseCalendar('vikram')}
+                  >
+                    Vikram Samvat
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={baseCalendar === 'saka'}
+                    onClick={() => setBaseCalendar('saka')}
+                  >
+                    Saka Era
+                  </DropdownMenuCheckboxItem>
+
+                  <DropdownMenuSeparator />
+
+                  {/* Overlay Selection */}
+                  <DropdownMenuLabel>Overlay</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={overlayCalendar === 'none'}
+                    onClick={() => setOverlayCalendar('none')}
+                  >
+                    None
+                  </DropdownMenuCheckboxItem>
+                  {baseCalendar !== 'vikram' && (
+                    <DropdownMenuCheckboxItem
+                      checked={overlayCalendar === 'vikram'}
+                      onClick={() => setOverlayCalendar('vikram')}
+                    >
+                      Vikram Samvat
+                    </DropdownMenuCheckboxItem>
+                  )}
+                  {baseCalendar !== 'saka' && (
+                    <DropdownMenuCheckboxItem
+                      checked={overlayCalendar === 'saka'}
+                      onClick={() => setOverlayCalendar('saka')}
+                    >
+                      Saka Era
+                    </DropdownMenuCheckboxItem>
+                  )}
+                  {baseCalendar !== 'gregorian' && (
+                    <DropdownMenuCheckboxItem
+                      checked={overlayCalendar === 'gregorian'}
+                      onClick={() => setOverlayCalendar('gregorian')}
+                    >
+                      Gregorian
+                    </DropdownMenuCheckboxItem>
+                  )}
+
+                  <DropdownMenuSeparator />
+
+                  {/* VS Scheme Selection */}
+                  <DropdownMenuLabel>VS Scheme</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={monthScheme === 'amanta'}
+                    onClick={() => setMonthScheme('amanta')}
+                  >
+                    Amanta (South/West)
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={monthScheme === 'purnimanta'}
+                    onClick={() => setMonthScheme('purnimanta')}
+                  >
+                    Purnimanta (North)
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
