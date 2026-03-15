@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   format,
   startOfMonth,
@@ -24,7 +24,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserEvents } from '@/components/AddEventModal';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface CalendarGridProps {
   currentDate: Date;
@@ -56,13 +56,13 @@ export function CalendarGrid({
   const monthStartStr = format(monthStart, 'yyyy-MM-dd');
   const monthEndStr = format(monthEnd, 'yyyy-MM-dd');
 
-  // Fetch festivals for dots
+  // Fetch festivals for event bars
   const { data: festivals } = useQuery({
     queryKey: ['festivals', monthStartStr, monthEndStr],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('festivals')
-        .select('gregorian_date, name')
+        .select('id, gregorian_date, name')
         .gte('gregorian_date', monthStartStr)
         .lte('gregorian_date', monthEndStr);
       if (error) throw error;
@@ -72,34 +72,34 @@ export function CalendarGrid({
 
   const { data: userEvents } = useUserEvents(monthStartStr, monthEndStr);
 
-  // Build festival/event date sets
-  const festivalDates = useMemo(() => {
-    const map = new Map<string, string[]>();
+  // Group items by Gregorian date key
+  const festivalsByDate = useMemo(() => {
+    const map = new Map<string, any[]>();
     festivals?.forEach((f) => {
       const key = f.gregorian_date;
       const existing = map.get(key) || [];
-      existing.push(f.name);
+      existing.push(f);
       map.set(key, existing);
     });
     return map;
   }, [festivals]);
 
-  const eventDates = useMemo(() => {
-    const map = new Map<string, string[]>();
+  const userEventsByDate = useMemo(() => {
+    const map = new Map<string, any[]>();
     userEvents?.forEach((e) => {
       const key = e.event_date;
       const existing = map.get(key) || [];
-      existing.push(e.title);
+      existing.push(e);
       map.set(key, existing);
     });
     return map;
   }, [userEvents]);
 
-  const googleEventMap = useMemo(() => {
-    const map = new Map<string, { id: string; title: string }[]>();
+  const googleEventsByDate = useMemo(() => {
+    const map = new Map<string, { id: string; title: string; startDate: string }[]>();
     googleEvents.forEach((e) => {
       const existing = map.get(e.startDate) || [];
-      existing.push({ id: e.id, title: e.title });
+      existing.push({ id: e.id, title: e.title, startDate: e.startDate });
       map.set(e.startDate, existing);
     });
     return map;
@@ -190,9 +190,9 @@ export function CalendarGrid({
           }
 
           const dateKey = format(d, 'yyyy-MM-dd');
-          const hasFestival = festivalDates.has(dateKey);
-          const hasEvent = eventDates.has(dateKey);
-          const googleForDay = googleEventMap.get(dateKey) || [];
+          const festivalsForDay = festivalsByDate.get(dateKey) || [];
+          const userEventsForDay = userEventsByDate.get(dateKey) || [];
+          const googleForDay = googleEventsByDate.get(dateKey) || [];
           const inMonth =
             baseCalendar === 'gregorian' ? isSameMonth(d, currentDate) : true;
           const today = isToday(d);
@@ -233,36 +233,77 @@ export function CalendarGrid({
                 </span>
               )}
 
-              <div className="flex gap-0.5 mt-auto">
-                {hasFestival && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                )}
-                {hasEvent && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
-                )}
-                {googleForDay.length > 0 && (
-                  <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          className="w-1.5 h-1.5 rounded-full bg-secondary/80"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <div className="text-xs font-medium mb-1">
-                          Google Calendar
+              <div className="mt-auto flex w-full flex-col gap-0.5">
+                {festivalsForDay.map((fest: any) => (
+                  <Popover key={fest.id}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="w-full rounded-md bg-primary/10 text-primary px-1 py-0.5 text-[10px] text-left truncate hover:bg-primary/20 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {fest.name}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" align="start">
+                      <div className="space-y-1">
+                        <div className="text-sm font-semibold">{fest.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {format(new Date(fest.gregorian_date + 'T00:00:00'), 'PPP')}
                         </div>
-                        {googleForDay.map((ev) => (
-                          <div key={ev.id} className="text-xs">
-                            {ev.title}
-                          </div>
-                        ))}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                ))}
+
+                {userEventsForDay.map((ev: any) => (
+                  <Popover key={ev.id}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="w-full rounded-md bg-secondary/20 text-secondary-foreground px-1 py-0.5 text-[10px] text-left truncate hover:bg-secondary/30 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {ev.title}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" align="start">
+                      <div className="space-y-1">
+                        <div className="text-sm font-semibold">{ev.title}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {format(new Date(ev.event_date + 'T00:00:00'), 'PPP')}
+                        </div>
+                        {ev.description && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {ev.description}
+                          </p>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                ))}
+
+                {googleForDay.map((ev) => (
+                  <Popover key={ev.id}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="w-full rounded-md bg-sky-500/20 text-sky-700 dark:text-sky-200 px-1 py-0.5 text-[10px] text-left truncate hover:bg-sky-500/30 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {ev.title}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" align="start">
+                      <div className="space-y-1">
+                        <div className="text-sm font-semibold">{ev.title}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {format(new Date(ev.startDate + 'T00:00:00'), 'PPP')}
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                ))}
               </div>
             </button>
           );
@@ -270,18 +311,18 @@ export function CalendarGrid({
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-primary" /> Festival
+          <span className="h-3 rounded-md bg-primary/20 border border-primary/50 px-1" /> Festival
         </span>
         {user && (
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-secondary" /> Your Event
+            <span className="h-3 rounded-md bg-secondary/30 border border-secondary/60 px-1" /> Your Event
           </span>
         )}
         {googleEvents.length > 0 && (
           <span className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-secondary/80" /> Google Event
+            <span className="h-3 rounded-md bg-sky-500/30 border border-sky-600 px-1" /> Google Event
           </span>
         )}
       </div>
