@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   format,
   addMonths,
@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { CalendarGrid } from '@/components/CalendarGrid';
+import { toast } from 'sonner';
 import { FestivalSidebar } from '@/components/FestivalSidebar';
 import { ZodiacInsight } from '@/components/ZodiacInsight';
 import { DateConverterModal } from '@/components/DateConverterModal';
@@ -28,6 +29,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { gapi } from 'gapi-script';
+
+interface GoogleCalendarEvent {
+  id: string;
+  title: string;
+  startDate: string; // yyyy-MM-dd
+}
 
 const Index = () => {
   const { user, signOut } = useAuth();
@@ -36,6 +44,31 @@ const Index = () => {
   const [authOpen, setAuthOpen] = useState(false);
   const [addEventOpen, setAddEventOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
+
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
+  console.log({TEST_ENV: import.meta.env.TEST_ENV}); //just for testing
+  console.log("DEBUG - Google Client ID:", GOOGLE_CLIENT_ID);
+  console.log("DEBUG - Google API Key:", GOOGLE_API_KEY ? "Present" : "Missing");
+  const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar.events.readonly';
+
+  useEffect(() => {
+    function initClient() {
+      gapi.client
+        .init({
+          apiKey: GOOGLE_API_KEY,
+          clientId: GOOGLE_CLIENT_ID,
+          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
+          scope: GOOGLE_SCOPES,
+        })
+        .catch(() => {
+          // ignore init errors until user actually tries to sync
+        });
+    }
+
+    gapi.load('client:auth2', initClient);
+  }, [GOOGLE_API_KEY, GOOGLE_CLIENT_ID]);
 
   const vs = gregorianToVikramSamvat(currentDate);
   const saka = gregorianToSaka(currentDate);
@@ -44,6 +77,69 @@ const Index = () => {
     if (user) {
       setSelectedDate(date);
       setAddEventOpen(true);
+    }
+  };
+
+  const handleSyncGoogleCalendar = async () => {
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_API_KEY) {
+      toast.error('Google Calendar is not configured. Missing client ID or API key.');
+      return;
+    }
+
+    try {
+      const authInstance = gapi.auth2.getAuthInstance();
+      if (!authInstance) {
+        await gapi.client.init({
+          apiKey: GOOGLE_API_KEY,
+          clientId: GOOGLE_CLIENT_ID,
+          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
+          scope: GOOGLE_SCOPES,
+        });
+      }
+
+      const updatedAuth = gapi.auth2.getAuthInstance();
+      if (!updatedAuth) {
+        toast.error('Unable to initialize Google authentication.');
+        return;
+      }
+
+      await updatedAuth.signIn();
+
+      const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+      const timeMin = monthStart.toISOString();
+      const timeMax = new Date(monthEnd.getTime() + 24 * 60 * 60 * 1000).toISOString();
+
+      const response = await gapi.client.calendar.events.list({
+        calendarId: 'primary',
+        timeMin,
+        timeMax,
+        showDeleted: false,
+        singleEvents: true,
+        orderBy: 'startTime',
+      });
+
+      const items = response.result.items ?? [];
+      const mapped: GoogleCalendarEvent[] = items
+        .map((event) => {
+          const start = event.start?.date || event.start?.dateTime;
+          if (!start) return null;
+          const date = new Date(start);
+          const yyyyMmDd = date.toISOString().slice(0, 10);
+          return {
+            id: event.id || `${yyyyMmDd}-${event.summary}`,
+            title: event.summary || '(No title)',
+            startDate: yyyyMmDd,
+          };
+        })
+        .filter((e): e is GoogleCalendarEvent => e !== null);
+
+      setGoogleEvents(mapped);
+      toast.success(`Synced ${mapped.length} Google Calendar event(s) for this month.`);
+    } catch (error) {
+      console.error('Error syncing Google Calendar', error);
+      toast.error('Failed to sync Google Calendar events.');
     }
   };
 
@@ -110,6 +206,14 @@ const Index = () => {
 
           <div className="flex items-center gap-2">
             <Button
+              variant="secondary"
+              size="sm"
+              className="text-xs"
+              onClick={handleSyncGoogleCalendar}
+            >
+              Sync Google Calendar
+            </Button>
+            <Button
               variant="ghost"
               size="sm"
               onClick={() => setCurrentDate(new Date())}
@@ -146,6 +250,7 @@ const Index = () => {
               currentDate={currentDate}
               showOverlay={overlay}
               onDateClick={handleDateClick}
+              googleEvents={googleEvents}
             />
             {!user && (
               <p className="text-xs text-muted-foreground mt-2 text-center">

@@ -16,16 +16,22 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserEvents } from '@/components/AddEventModal';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface CalendarGridProps {
   currentDate: Date;
   showOverlay: 'none' | 'vikram' | 'saka';
   onDateClick: (date: Date) => void;
+  googleEvents?: {
+    id: string;
+    title: string;
+    startDate: string; // yyyy-MM-dd
+  }[];
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function CalendarGrid({ currentDate, showOverlay, onDateClick }: CalendarGridProps) {
+export function CalendarGrid({ currentDate, showOverlay, onDateClick, googleEvents = [] }: CalendarGridProps) {
   const { user } = useAuth();
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -74,6 +80,16 @@ export function CalendarGrid({ currentDate, showOverlay, onDateClick }: Calendar
     return map;
   }, [userEvents]);
 
+  const googleEventMap = useMemo(() => {
+    const map = new Map<string, { id: string; title: string }[]>();
+    googleEvents.forEach((e) => {
+      const existing = map.get(e.startDate) || [];
+      existing.push({ id: e.id, title: e.title });
+      map.set(e.startDate, existing);
+    });
+    return map;
+  }, [googleEvents]);
+
   // Generate calendar days
   const days: Date[] = [];
   let day = calStart;
@@ -111,6 +127,7 @@ export function CalendarGrid({ currentDate, showOverlay, onDateClick }: Calendar
           const dateKey = format(d, 'yyyy-MM-dd');
           const hasFestival = festivalDates.has(dateKey);
           const hasEvent = eventDates.has(dateKey);
+          const googleForDay = googleEventMap.get(dateKey) || [];
           const inMonth = isSameMonth(d, currentDate);
           const today = isToday(d);
 
@@ -144,6 +161,27 @@ export function CalendarGrid({ currentDate, showOverlay, onDateClick }: Calendar
                 {hasEvent && (
                   <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
                 )}
+                {googleForDay.length > 0 && (
+                  <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          className="w-1.5 h-1.5 rounded-full bg-secondary/80"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <div className="text-xs font-medium mb-1">Google Calendar</div>
+                        {googleForDay.map((ev) => (
+                          <div key={ev.id} className="text-xs">
+                            {ev.title}
+                          </div>
+                        ))}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
             </button>
           );
@@ -158,6 +196,11 @@ export function CalendarGrid({ currentDate, showOverlay, onDateClick }: Calendar
         {user && (
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-secondary" /> Your Event
+          </span>
+        )}
+        {googleEvents.length > 0 && (
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-secondary/80" /> Google Event
           </span>
         )}
       </div>
