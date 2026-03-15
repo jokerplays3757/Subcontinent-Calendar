@@ -139,18 +139,31 @@ export function CalendarGrid({
   }
 
   const getOverlayText = (date: Date): string => {
+    if (overlayCalendar === 'none') return '';
+
     if (overlayCalendar === 'vikram') {
-      const vs = gregorianToVikramSamvat(date, monthScheme);
-      return vs.month.slice(0, 3);
+      const info = gregorianToVikramSamvat(date, monthScheme);
+      // Compute day number within this VS month using a local month walk
+      const monthDays = getVikramMonthDays(date, monthScheme);
+      const idx = monthDays.findIndex(
+        (d) => d.toDateString() === date.toDateString()
+      );
+      const dayNum = idx >= 0 ? idx + 1 : 1;
+      return `${info.month.slice(0, 3)} ${dayNum}`;
     }
+
     if (overlayCalendar === 'saka') {
-      const saka = gregorianToSaka(date);
-      return saka.month.slice(0, 3);
+      const info = gregorianToSaka(date);
+      const monthDays = getSakaMonthDays(date);
+      const idx = monthDays.findIndex(
+        (d) => d.toDateString() === date.toDateString()
+      );
+      const dayNum = idx >= 0 ? idx + 1 : 1;
+      return `${info.month.slice(0, 3)} ${dayNum}`;
     }
-    if (overlayCalendar === 'gregorian') {
-      return format(date, 'MMM');
-    }
-    return '';
+
+    // Gregorian overlay
+    return `${format(date, 'MMM')} ${date.getDate()}`;
   };
 
   return (
@@ -215,7 +228,7 @@ export function CalendarGrid({
               </span>
 
               {overlayCalendar !== 'none' && (
-                <span className="text-[9px] text-primary/70 leading-none mt-0.5">
+                <span className="absolute top-1 right-1 text-[10px] text-muted-foreground leading-none">
                   {getOverlayText(d)}
                 </span>
               )}
