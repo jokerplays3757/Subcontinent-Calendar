@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   format,
   startOfMonth,
@@ -22,15 +22,18 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useUserEvents } from '@/components/AddEventModal';
+import { useUserEvents, useDeleteEvent } from '@/components/AddEventModal';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { Pencil, Trash2 } from 'lucide-react';
 
 interface CalendarGridProps {
   currentDate: Date;
   baseCalendar: CalendarId;
   overlayCalendar: 'none' | CalendarId;
   onDateClick: (date: Date) => void;
+  onEditEvent?: (event: any) => void;
   monthScheme?: MonthScheme;
   googleEvents?: {
     id: string;
@@ -46,10 +49,13 @@ export function CalendarGrid({
   baseCalendar,
   overlayCalendar,
   onDateClick,
+  onEditEvent,
   monthScheme = 'purnimanta',
   googleEvents = [],
 }: CalendarGridProps) {
   const { user } = useAuth();
+  const deleteEvent = useDeleteEvent();
+  const [eventToEdit, setEventToEdit] = useState<any>(null);
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
 
@@ -268,16 +274,46 @@ export function CalendarGrid({
                       </button>
                     </PopoverTrigger>
                     <PopoverContent side="top" align="start">
-                      <div className="space-y-1">
-                        <div className="text-sm font-semibold">{ev.title}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(new Date(ev.event_date + 'T00:00:00'), 'PPP')}
+                      <div className="space-y-2">
+                        <div className="space-y-1">
+                          <div className="text-sm font-semibold">{ev.title}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {format(new Date(ev.event_date + 'T00:00:00'), 'PPP')}
+                          </div>
+                          {ev.description && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {ev.description}
+                            </p>
+                          )}
                         </div>
-                        {ev.description && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {ev.description}
-                          </p>
-                        )}
+                        <div className="border-t border-border mt-1 pt-2" />
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-primary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEventToEdit(ev);
+                              if (onEditEvent) {
+                                onEditEvent(ev);
+                              }
+                            }}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-destructive hover:text-destructive/90"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteEvent.mutate(ev.id);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     </PopoverContent>
                   </Popover>

@@ -48,6 +48,7 @@ const Index = () => {
   const [addEventOpen, setAddEventOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEvent[]>([]);
+  const [eventToEdit, setEventToEdit] = useState<any>(null);
 
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
@@ -97,9 +98,16 @@ const Index = () => {
 
   const handleDateClick = (date: Date) => {
     if (user) {
+      setEventToEdit(null);
       setSelectedDate(date);
       setAddEventOpen(true);
     }
+  };
+
+  const handleEditEvent = (ev: any) => {
+    setEventToEdit(ev);
+    setSelectedDate(new Date(ev.event_date + 'T00:00:00'));
+    setAddEventOpen(true);
   };
 
   const handleSyncGoogleCalendar = async () => {
@@ -327,6 +335,7 @@ const Index = () => {
               baseCalendar={baseCalendar}
               overlayCalendar={overlayCalendar}
               onDateClick={handleDateClick}
+              onEditEvent={handleEditEvent}
               googleEvents={googleEvents}
               monthScheme={monthScheme}
             />
@@ -346,7 +355,17 @@ const Index = () => {
 
       {/* Modals */}
       <AuthModal open={authOpen} onOpenChange={setAuthOpen} />
-      <AddEventModal open={addEventOpen} onOpenChange={setAddEventOpen} selectedDate={selectedDate} />
+      <AddEventModal
+        open={addEventOpen}
+        onOpenChange={(open) => {
+          setAddEventOpen(open);
+          if (!open) {
+            setEventToEdit(null);
+          }
+        }}
+        selectedDate={selectedDate}
+        eventToEdit={eventToEdit}
+      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -20,9 +20,10 @@ interface AddEventModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate?: Date;
+  eventToEdit?: any;
 }
 
-export function AddEventModal({ open, onOpenChange, selectedDate }: AddEventModalProps) {
+export function AddEventModal({ open, onOpenChange, selectedDate, eventToEdit }: AddEventModalProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
@@ -30,6 +31,22 @@ export function AddEventModal({ open, onOpenChange, selectedDate }: AddEventModa
   const [eventDate, setEventDate] = useState(
     selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
   );
+
+  useEffect(() => {
+    if (eventToEdit) {
+      setTitle(eventToEdit.title || '');
+      setDescription(eventToEdit.description || '');
+      setEventDate(eventToEdit.event_date);
+    } else {
+      setTitle('');
+      setDescription('');
+      setEventDate(
+        selectedDate
+          ? format(selectedDate, 'yyyy-MM-dd')
+          : format(new Date(), 'yyyy-MM-dd')
+      );
+    }
+  }, [eventToEdit, selectedDate]);
 
   const createEvent = useMutation({
     mutationFn: async () => {
@@ -52,16 +69,47 @@ export function AddEventModal({ open, onOpenChange, selectedDate }: AddEventModa
     onError: (err: any) => toast.error(err.message),
   });
 
+  const updateEvent = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error('Not authenticated');
+      if (!eventToEdit?.id) throw new Error('Missing event id');
+
+      const { error } = await supabase
+        .from('user_events')
+        .update({
+          title,
+          description: description || null,
+          event_date: eventDate,
+        })
+        .eq('id', eventToEdit.id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-events'] });
+      toast.success('Event updated!');
+      onOpenChange(false);
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl">Save Event</DialogTitle>
+          <DialogTitle className="font-display text-2xl">
+            {eventToEdit ? 'Edit Event' : 'Save Event'}
+          </DialogTitle>
         </DialogHeader>
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            createEvent.mutate();
+            if (eventToEdit) {
+              updateEvent.mutate();
+            } else {
+              createEvent.mutate();
+            }
           }}
           className="space-y-4 mt-2"
         >
@@ -77,9 +125,17 @@ export function AddEventModal({ open, onOpenChange, selectedDate }: AddEventModa
             <Label>Description (optional)</Label>
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add details..." />
           </div>
-          <Button type="submit" className="w-full" disabled={createEvent.isPending}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={createEvent.isPending || updateEvent.isPending}
+          >
             <Plus className="mr-2 h-4 w-4" />
-            {createEvent.isPending ? 'Saving...' : 'Save Event'}
+            {createEvent.isPending || updateEvent.isPending
+              ? 'Saving...'
+              : eventToEdit
+              ? 'Update Event'
+              : 'Save Event'}
           </Button>
         </form>
       </DialogContent>
